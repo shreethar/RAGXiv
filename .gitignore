@@ -1,0 +1,7 @@
+.env
+.venv/
+stack.md
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
