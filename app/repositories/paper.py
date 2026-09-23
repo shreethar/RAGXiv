@@ -37,7 +37,7 @@ class PaperRepository:
             abstract=abstract,
             authors=authors,
             version=version,
-            publised_at=published_at,
+            published_at=published_at,
             pdf_url=pdf_url,
             status=status
         )
