@@ -93,3 +93,9 @@ class Paper(Base):
     project_papers: Mapped[list["ProjectPaper"]] = relationship(
         back_populates="paper",
     )
+
+    chunks: Mapped[list["PaperChunk"]] = relationship(
+        back_populates="paper",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
