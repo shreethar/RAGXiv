@@ -33,6 +33,40 @@ def make_paper(*, paper_id=None):
     return paper
 
 
+def test_create_get_list_and_delete_project_for_owner():
+    service, project_repository, _ = make_service()
+    user_id = uuid4()
+    project_id = uuid4()
+    project = make_project(user_id=user_id, project_id=project_id)
+    project_repository.create.return_value = project
+    project_repository.get_by_id.return_value = project
+    project_repository.list_by_user.return_value = [project]
+
+    created = service.create(user_id=user_id, name="  Research  ")
+    fetched = service.get(user_id=user_id, project_id=project_id)
+    listed = service.list_projects(user_id=user_id)
+    service.delete(user_id=user_id, project_id=project_id)
+
+    assert created is project
+    assert fetched is project
+    assert listed == [project]
+    project_repository.create.assert_called_once_with(
+        user_id=user_id,
+        name="Research",
+    )
+    project_repository.list_by_user.assert_called_once_with(user_id)
+    project_repository.delete.assert_called_once_with(project_id)
+
+
+def test_create_rejects_empty_project_name():
+    service, project_repository, _ = make_service()
+
+    with pytest.raises(ValueError, match="Project name must not be empty"):
+        service.create(user_id=uuid4(), name="   ")
+
+    project_repository.create.assert_not_called()
+
+
 def test_list_papers_returns_project_papers_for_owner():
     service, project_repository, _ = make_service()
 
