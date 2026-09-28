@@ -43,3 +43,10 @@ class Message(Base):
     chat: Mapped["Chat"] = relationship(
         back_populates="messages",
     )
+
+    citations: Mapped[list["MessageCitation"]] = relationship(
+        back_populates="message",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="MessageCitation.position",
+    )

@@ -1,9 +1,11 @@
 from uuid import UUID
 
 from sqlalchemy import delete, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.db.models.message import Message
+from app.db.models.message_citation import MessageCitation
+from app.db.models.paper_chunk import PaperChunk
 
 
 class MessageRepository:
@@ -15,8 +17,14 @@ class MessageRepository:
         self,
         message_id: UUID,
     ) -> Message | None:
-        stmt = select(Message).where(
-            Message.message_id == message_id
+        stmt = (
+            select(Message)
+            .where(Message.message_id == message_id)
+            .options(
+                selectinload(Message.citations)
+                .selectinload(MessageCitation.chunk)
+                .selectinload(PaperChunk.paper)
+            )
         )
 
         return self.session.scalar(stmt)
@@ -29,6 +37,11 @@ class MessageRepository:
             select(Message)
             .where(Message.chat_id == chat_id)
             .order_by(Message.created_at.asc())
+            .options(
+                selectinload(Message.citations)
+                .selectinload(MessageCitation.chunk)
+                .selectinload(PaperChunk.paper)
+            )
         )
 
         return list(self.session.scalars(stmt))

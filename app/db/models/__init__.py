@@ -5,6 +5,7 @@ from app.db.models.project_paper import ProjectPaper
 from app.db.models.chat import Chat
 from app.db.models.message import Message
 from app.db.models.paper_chunk import PaperChunk
+from app.db.models.message_citation import MessageCitation
 
 __all__ = [
     "User",
@@ -14,4 +15,5 @@ __all__ = [
     "Message",
     "Chat",
     "PaperChunk",
+    "MessageCitation",
 ]

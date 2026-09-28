@@ -45,6 +45,11 @@ class PaperChunk(Base):
         back_populates="chunks",
     )
 
+    citations: Mapped[list["MessageCitation"]] = relationship(
+        back_populates="chunk",
+        passive_deletes=True,
+    )
+
     __table_args__ = (
         UniqueConstraint(
             "paper_id",
