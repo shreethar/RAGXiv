@@ -11,7 +11,7 @@ class DocumentChunk:
 
 @dataclass(frozen=True)
 class RetrievedChunk:
-    chunk_id: str
+    chunk_id: UUID
     text: str
     score: float
     chunk_index: int

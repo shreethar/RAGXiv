@@ -76,7 +76,7 @@ class PgVectorStore(VectorStore):
 
         return [
             RetrievedChunk(
-                chunk_id=str(row.chunk_id),
+                chunk_id=row.chunk_id,
                 text=row.content,
                 score=float(row.score),
                 chunk_index=row.chunk_index,

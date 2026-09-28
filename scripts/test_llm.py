@@ -1,7 +1,13 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+from pydantic import BaseModel
+
 from app.infrastructure.llm import OpenAILLMService
+
+
+class StructuredAnswer(BaseModel):
+    answer: str
 
 
 def test_generate_returns_model_output():
@@ -58,3 +64,28 @@ def test_generate_returns_empty_output_when_model_returns_empty_text():
     )
 
     assert result == ""
+
+
+def test_generate_structured_returns_parsed_model():
+    client = Mock()
+    parsed = StructuredAnswer(answer="Structured answer")
+    client.responses.parse.return_value = SimpleNamespace(
+        output_parsed=parsed
+    )
+    service = OpenAILLMService(client=client, model="test-model")
+
+    result = service.generate_structured(
+        system_prompt="System",
+        user_prompt="User",
+        output_type=StructuredAnswer,
+    )
+
+    assert result is parsed
+    client.responses.parse.assert_called_once_with(
+        model="test-model",
+        input=[
+            {"role": "system", "content": "System"},
+            {"role": "user", "content": "User"},
+        ],
+        text_format=StructuredAnswer,
+    )

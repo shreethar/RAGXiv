@@ -58,6 +58,7 @@ def test_real_rag_pipeline():
             embedding_service=embedding_service,
             vector_store=vector_store,
             llm_service=llm_service,
+            paper_repository=paper_repository,
         )
 
         # Ingest the paper.
@@ -96,6 +97,10 @@ def test_real_rag_pipeline():
         assert result.answer.strip()
 
         assert 0 < len(result.chunks) <= 5
+        assert all(
+            citation.reference.paper_id == paper.paper_id
+            for citation in result.citations
+        )
 
         for chunk in result.chunks:
             assert chunk.text.strip()
