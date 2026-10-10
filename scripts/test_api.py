@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.api import dependencies
 from app.api.dependencies import (
@@ -32,7 +33,9 @@ def _project(*, user_id=None, project_id=None, name="Robotics Papers"):
 def _paper(*, paper_id=None):
     return SimpleNamespace(
         paper_id=paper_id or uuid4(),
+        source_type="arxiv",
         arxiv_id="1706.03762",
+        original_filename=None,
         title="Attention Is All You Need",
         abstract="A sequence transduction architecture.",
         authors="Ashish Vaswani",
@@ -40,6 +43,7 @@ def _paper(*, paper_id=None):
         published_at=datetime(2017, 6, 12, tzinfo=timezone.utc),
         pdf_url="https://arxiv.org/pdf/1706.03762.pdf",
         status="ready",
+        ingestion_error=None,
     )
 
 
@@ -135,6 +139,35 @@ def test_development_auth_rejects_missing_or_invalid_user_id(
 
     assert response.status_code == 401
     assert response.json() == {"detail": expected_detail}
+
+
+def test_health_and_readiness_endpoints_do_not_require_auth():
+    app = create_app()
+    session = MagicMock()
+    app.dependency_overrides[get_session] = lambda: session
+
+    with TestClient(app) as client:
+        health = client.get("/health")
+        readiness = client.get("/ready")
+
+    assert health.status_code == 200
+    assert health.json() == {"status": "healthy"}
+    assert readiness.status_code == 200
+    assert readiness.json() == {"status": "ready"}
+    session.execute.assert_called_once()
+
+
+def test_readiness_returns_503_when_database_is_unavailable():
+    app = create_app()
+    session = MagicMock()
+    session.execute.side_effect = SQLAlchemyError("database unavailable")
+    app.dependency_overrides[get_session] = lambda: session
+
+    with TestClient(app) as client:
+        response = client.get("/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Service is not ready"}
 
 
 def test_create_and_list_projects_use_authenticated_user(api_context):
@@ -274,6 +307,45 @@ def test_ingest_paper_and_validate_request(api_context):
         arxiv_id="1706.03762"
     )
     assert invalid.status_code == 422
+
+
+def test_upload_pdf_delegates_to_paper_service(api_context):
+    paper = _paper()
+    paper.source_type = "upload"
+    paper.arxiv_id = None
+    paper.original_filename = "paper.pdf"
+    api_context.paper_service.ingest_pdf.return_value = paper
+
+    response = api_context.client.post(
+        "/papers/upload",
+        files={"file": ("paper.pdf", b"%PDF-1.7 data", "application/pdf")},
+        data={
+            "title": "Uploaded Paper",
+            "abstract": "An abstract",
+            "authors": "Alice, Bob",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["source_type"] == "upload"
+    assert response.json()["arxiv_id"] is None
+    api_context.paper_service.ingest_pdf.assert_called_once_with(
+        document=b"%PDF-1.7 data",
+        filename="paper.pdf",
+        title="Uploaded Paper",
+        abstract="An abstract",
+        authors="Alice, Bob",
+    )
+
+
+def test_upload_pdf_rejects_non_pdf_content_type(api_context):
+    response = api_context.client.post(
+        "/papers/upload",
+        files={"file": ("paper.txt", b"text", "text/plain")},
+    )
+
+    assert response.status_code == 415
+    api_context.paper_service.ingest_pdf.assert_not_called()
 
 
 def test_arxiv_search_and_metadata_lookup(api_context):
