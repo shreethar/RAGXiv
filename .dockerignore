@@ -1,0 +1,14 @@
+.env
+.git
+.gitignore
+.pytest_cache
+.mypy_cache
+.venv
+**/__pycache__
+**/*.py[cod]
+*.bkp
+scripts
+stack.md
+Phase 1 SQL Schema.drawio
+Phase 1 SQL Schema.png
+docker-compose*.yml
