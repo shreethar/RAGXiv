@@ -1,7 +1,16 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, Text, Uuid, func, Integer, CheckConstraint, text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Integer,
+    String,
+    Text,
+    Uuid,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
@@ -16,10 +25,28 @@ class Paper(Base):
         default=uuid.uuid4,
     )
 
-    arxiv_id: Mapped[str] = mapped_column(
-        String(50),
+    source_type: Mapped[str] = mapped_column(
+        String(20),
         nullable=False,
+        default="arxiv",
+        server_default="arxiv",
+    )
+
+    arxiv_id: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
         unique=True,
+    )
+
+    content_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        unique=True,
+    )
+
+    original_filename: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
     )
 
     title: Mapped[str] = mapped_column(
@@ -58,6 +85,11 @@ class Paper(Base):
         server_default="pending",
     )
 
+    ingestion_error: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -87,6 +119,17 @@ class Paper(Base):
         CheckConstraint(
             "project_count >= 0",
             name="ck_papers_project_count_nonnegative",
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'processing', 'ready', 'failed')",
+            name="ck_papers_ingestion_status",
+        ),
+        CheckConstraint(
+            "(source_type = 'arxiv' AND arxiv_id IS NOT NULL "
+            "AND content_hash IS NULL) OR "
+            "(source_type = 'upload' AND arxiv_id IS NULL "
+            "AND content_hash IS NOT NULL)",
+            name="ck_papers_source_identity",
         ),
     )
 

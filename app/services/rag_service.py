@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import logging
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -9,6 +10,9 @@ from app.infrastructure.llm import LLMService
 from app.infrastructure.vector_store import RetrievedChunk, VectorStore
 from app.infrastructure.embeddings import EmbeddingService
 from app.repositories.paper import PaperRepository
+
+
+logger = logging.getLogger(__name__)
 
 
 class RagCitationSelection(BaseModel):
@@ -53,6 +57,10 @@ class RAGService:
 
         if paper is None:
             raise ValueError("Paper not found")
+        if paper.status != "ready":
+            raise ValueError(
+                f"Paper is not ready for retrieval: {paper.status}"
+            )
 
         query_embedding = self.embedding_service.embed(
             texts=[question]
@@ -72,6 +80,15 @@ class RAGService:
             paper=paper,
             source_map=source_map,
         )
+        logger.info(
+            "Paper retrieval completed",
+            extra={
+                "event": "paper_retrieval_completed",
+                "paper_id": paper_id,
+                "retrieved_chunk_count": len(chunks),
+                "retrieval_limit": limit,
+            },
+        )
 
         output = self.llm_service.generate_structured(
             system_prompt=self._system_prompt(),
@@ -86,6 +103,15 @@ class RAGService:
             paper_id=paper_id,
             selections=output.citations,
             source_map=source_map,
+        )
+        logger.info(
+            "Grounded paper answer generated",
+            extra={
+                "event": "paper_answer_generated",
+                "paper_id": paper_id,
+                "retrieved_chunk_count": len(chunks),
+                "citation_count": len(citations),
+            },
         )
 
         return RagResult(
@@ -119,12 +145,18 @@ class RAGService:
             (
                 f"[Source ID: {source_id}]\n"
                 f"Paper: {paper.title}\n"
-                f"arXiv ID: {paper.arxiv_id}\n"
+                f"Source: {RAGService._paper_source_label(paper)}\n"
                 f"Chunk index: {chunk.chunk_index}\n\n"
                 f"{chunk.text}"
             )
             for source_id, chunk in source_map.items()
         )
+
+    @staticmethod
+    def _paper_source_label(paper: Paper) -> str:
+        if paper.arxiv_id is not None:
+            return f"arXiv {paper.arxiv_id}"
+        return paper.original_filename or "uploaded PDF"
 
     @staticmethod
     def _build_user_prompt(

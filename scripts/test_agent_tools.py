@@ -147,7 +147,9 @@ def test_list_project_papers_uses_authenticated_user_context(tool_context):
     tool_context["project_service"].list_papers.return_value = [
         SimpleNamespace(
             paper_id=paper_id,
+            source_type="arxiv",
             arxiv_id="1706.03762",
+            original_filename=None,
             title="Attention Is All You Need",
             abstract="A sequence transduction architecture.",
             authors="Ashish Vaswani",

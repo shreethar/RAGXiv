@@ -212,7 +212,9 @@ def create_agent_tools(
             "papers": [
                 {
                     "paper_id": str(paper.paper_id),
+                    "source_type": paper.source_type,
                     "arxiv_id": paper.arxiv_id,
+                    "original_filename": paper.original_filename,
                     "title": paper.title,
                     "abstract": paper.abstract,
                     "authors": paper.authors,

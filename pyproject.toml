@@ -17,11 +17,16 @@ dependencies = [
     "pgvector>=0.5.0",
     "psycopg[binary]>=3.3.5",
     "pymupdf>=1.28.2",
-    "pytest>=9.1.1",
     "python-dotenv>=1.2.3",
+    "python-multipart>=0.0.20",
     "pyyaml>=6.0.3",
     "sqlalchemy>=2.0.52",
     "uvicorn>=0.53.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
 ]
 
 [tool.pytest.ini_options]

@@ -1,7 +1,16 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 
 from app.api.dependencies import (
     get_arxiv_service,
@@ -21,6 +30,7 @@ from app.services.paper_service import PaperService
 
 
 router = APIRouter(prefix="/papers", tags=["papers"])
+MAX_PDF_UPLOAD_BYTES = 25 * 1024 * 1024
 
 
 @router.post("/ingest", response_model=PaperResponse)
@@ -31,6 +41,47 @@ def ingest_paper(
 ) -> PaperResponse:
     paper = call_application(
         lambda: service.ingest(arxiv_id=request.arxiv_id)
+    )
+    return PaperResponse.model_validate(paper)
+
+
+@router.post("/upload", response_model=PaperResponse)
+def upload_paper(
+    file: Annotated[UploadFile, File(description="PDF document")],
+    _user_id: Annotated[UUID, Depends(get_current_user_id)],
+    service: Annotated[PaperService, Depends(get_paper_service)],
+    title: Annotated[str | None, Form()] = None,
+    abstract: Annotated[str | None, Form()] = None,
+    authors: Annotated[str | None, Form()] = None,
+) -> PaperResponse:
+    if file.content_type not in {
+        "application/pdf",
+        "application/x-pdf",
+        "application/octet-stream",
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Only PDF uploads are supported",
+        )
+
+    try:
+        document = file.file.read(MAX_PDF_UPLOAD_BYTES + 1)
+    finally:
+        file.file.close()
+    if len(document) > MAX_PDF_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail="PDF exceeds the 25 MiB upload limit",
+        )
+
+    paper = call_application(
+        lambda: service.ingest_pdf(
+            document=document,
+            filename=file.filename or "",
+            title=title,
+            abstract=abstract,
+            authors=authors,
+        )
     )
     return PaperResponse.model_validate(paper)
 

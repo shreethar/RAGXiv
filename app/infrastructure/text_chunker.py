@@ -3,6 +3,15 @@ from app.infrastructure.vector_store import DocumentChunk
 
 
 class TextChunker(Chunker):
+    """Split extracted text into overlapping character windows.
+
+    With the defaults, each chunk contains at most 4,000 Unicode characters
+    and adjacent chunks share 400 characters. Whitespace is trimmed after
+    slicing, empty windows are discarded, and retained chunks receive stable
+    zero-based indexes within the paper. This deliberately does not detect
+    tokens, sentences, paragraphs, pages, headings, or semantic boundaries.
+    """
+
     def __init__(
         self,
         *,

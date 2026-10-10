@@ -201,7 +201,9 @@ def test_http_query_paper_citation_is_persisted_and_returned():
     chunk_id = uuid4()
     paper = SimpleNamespace(
         paper_id=paper_id,
+        source_type="arxiv",
         arxiv_id="1706.03762",
+        original_filename=None,
         title="Attention Is All You Need",
     )
     chunk = SimpleNamespace(

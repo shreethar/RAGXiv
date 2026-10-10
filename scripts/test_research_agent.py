@@ -273,3 +273,76 @@ def test_agent_result_can_combine_citations_from_multiple_papers():
     )
 
     assert result.citations == references
+
+
+def test_agent_executes_independent_paper_calls_from_one_model_turn():
+    paper_ids = (uuid4(), uuid4())
+    chunk_ids = (uuid4(), uuid4())
+    rag_service = MagicMock()
+
+    def query_paper(*, question, paper_id):
+        index = paper_ids.index(paper_id)
+        return RagResult(
+            query=question,
+            answer=f"Answer from paper {index + 1}",
+            chunks=[
+                RetrievedChunk(
+                    chunk_id=chunk_ids[index],
+                    text=f"Evidence from paper {index + 1}",
+                    score=0.1,
+                    chunk_index=index,
+                )
+            ],
+            citations=[
+                SourceCitation(
+                    source_id="source_1",
+                    reference=CitationReference(
+                        paper_id=paper_id,
+                        chunk_id=chunk_ids[index],
+                    ),
+                )
+            ],
+        )
+
+    rag_service.query_paper.side_effect = query_paper
+    model = ScriptedChatModel(
+        responses=[
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "query_paper",
+                        "args": {
+                            "question": "Compare this result",
+                            "paper_id": str(paper_id),
+                        },
+                        "id": f"call-{index}",
+                        "type": "tool_call",
+                    }
+                    for index, paper_id in enumerate(paper_ids, start=1)
+                ],
+            ),
+            AIMessage(content="Combined answer from both papers."),
+        ]
+    )
+    agent = create_research_agent(
+        model=model,
+        dependencies=_dependencies(rag_service=rag_service),
+        user_id=uuid4(),
+    )
+
+    result = agent.invoke(
+        messages=[ResearchMessage(role="user", content="Compare the papers")]
+    )
+
+    assert rag_service.query_paper.call_count == 2
+    assert set(result.citations) == {
+        CitationReference(paper_id=paper_ids[0], chunk_id=chunk_ids[0]),
+        CitationReference(paper_id=paper_ids[1], chunk_id=chunk_ids[1]),
+    }
+    tool_messages = [
+        message
+        for message in model.seen_messages[1]
+        if isinstance(message, ToolMessage)
+    ]
+    assert len(tool_messages) == 2

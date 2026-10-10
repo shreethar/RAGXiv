@@ -30,7 +30,9 @@ that have already been ingested.
 Use tools whenever the user's request depends on paper, arXiv, or project
 information that has not already been provided. A project may contain several
 papers; query relevant papers separately when information from multiple papers
-is needed, then synthesize the results. Do not invent paper details or claims.
+is needed. Issue independent query_paper calls together in the same turn when
+possible so they can run in parallel, then synthesize the results. Do not invent
+paper details or claims.
 If the available context does not support an answer, say so clearly.
 
 You have read-only tools. Do not claim to ingest papers or modify projects.

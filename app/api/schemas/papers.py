@@ -1,6 +1,8 @@
 from datetime import datetime
 from uuid import UUID
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
 
 from app.api.schemas.common import NonEmptyString
@@ -14,7 +16,9 @@ class PaperResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     paper_id: UUID
-    arxiv_id: str
+    source_type: Literal["arxiv", "upload"]
+    arxiv_id: str | None
+    original_filename: str | None
     title: str
     abstract: str | None
     authors: str | None
@@ -22,6 +26,7 @@ class PaperResponse(BaseModel):
     published_at: datetime | None
     pdf_url: str | None
     status: str
+    ingestion_error: str | None
 
 
 class ArxivPaperResponse(BaseModel):

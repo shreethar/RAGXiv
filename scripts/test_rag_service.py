@@ -20,6 +20,8 @@ def make_service():
     paper_repository.get_by_id.return_value = SimpleNamespace(
         title="Attention Is All You Need",
         arxiv_id="1706.03762",
+        original_filename=None,
+        status="ready",
     )
     service = RAGService(
         embedding_service=embedding_service,
@@ -103,7 +105,7 @@ def test_source_ids_and_paper_metadata_are_in_structured_llm_prompt():
     assert "[Source ID: source_1]" in prompt
     assert "[Source ID: source_2]" in prompt
     assert "Paper: Attention Is All You Need" in prompt
-    assert "arXiv ID: 1706.03762" in prompt
+    assert "Source: arXiv 1706.03762" in prompt
     assert "Chunk index: 5" in prompt
     assert call.kwargs["output_type"] is RagAnswerOutput
 
@@ -188,3 +190,31 @@ def test_missing_paper_is_rejected_before_retrieval():
 
     embeddings.embed.assert_not_called()
     vector_store.search.assert_not_called()
+
+
+def test_non_ready_paper_is_rejected_before_retrieval():
+    service, embeddings, vector_store, _, paper_repository = make_service()
+    paper_repository.get_by_id.return_value.status = "failed"
+
+    with pytest.raises(ValueError, match="not ready for retrieval: failed"):
+        service.query_paper(question="Question", paper_id=uuid4())
+
+    embeddings.embed.assert_not_called()
+    vector_store.search.assert_not_called()
+
+
+def test_uploaded_pdf_filename_identifies_source_in_prompt():
+    service, embeddings, vector_store, llm, paper_repository = make_service()
+    paper_repository.get_by_id.return_value.arxiv_id = None
+    paper_repository.get_by_id.return_value.original_filename = "upload.pdf"
+    embeddings.embed.return_value = [[0.1]]
+    vector_store.search.return_value = [_chunk(index=0, text="Evidence")]
+    llm.generate_structured.return_value = RagAnswerOutput(
+        answer="Answer",
+        citations=[],
+    )
+
+    service.query_paper(question="Question", paper_id=uuid4())
+
+    prompt = llm.generate_structured.call_args.kwargs["user_prompt"]
+    assert "Source: upload.pdf" in prompt

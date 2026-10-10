@@ -67,7 +67,9 @@ class MessageListResponse(BaseModel):
 
 class CitationPaperResponse(BaseModel):
     paper_id: UUID
-    arxiv_id: str
+    source_type: Literal["arxiv", "upload"]
+    arxiv_id: str | None
+    original_filename: str | None
     title: str
 
 
@@ -91,7 +93,9 @@ class CitationSummaryResponse(BaseModel):
             position=citation.position,
             paper=CitationPaperResponse(
                 paper_id=paper.paper_id,
+                source_type=paper.source_type,
                 arxiv_id=paper.arxiv_id,
+                original_filename=paper.original_filename,
                 title=paper.title,
             ),
             chunk=CitationChunkResponse(
